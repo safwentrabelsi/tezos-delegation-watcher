@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/penglongli/gin-metrics/ginmetrics"
+	"github.com/safwentrabelsi/tezos-delegation-watcher/config"
 	"github.com/safwentrabelsi/tezos-delegation-watcher/store"
 	log "github.com/sirupsen/logrus"
 )
@@ -21,9 +22,9 @@ type APIServer struct {
 	store      store.Storer
 }
 
-func NewAPIServer(listenAddr string, store store.Storer) *APIServer {
+func NewAPIServer(cfg *config.ServerConfig, store store.Storer) *APIServer {
 	return &APIServer{
-		listenAddr: listenAddr,
+		listenAddr: cfg.GetListenAddress(),
 		store:      store,
 	}
 }
@@ -75,6 +76,7 @@ func validateYear(yearStr string) error {
 		return err
 	}
 	currentYear := time.Now().Year()
+	// Get 2018 from config
 	// 2018 is the launch year of tezos mainnet
 	if year < 2018 || year > currentYear {
 		return fmt.Errorf("year must be between 2000 and %d", currentYear)

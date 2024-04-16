@@ -7,3 +7,13 @@ type Delegation struct {
 	Delegator string `json:"delegator"`
 	Block     uint64 `json:"block"`
 }
+
+// GetDelegationsResponse is the response from Tzkt api
+type GetDelegationsResponse struct {
+	Level     uint64 `json:"level"`
+	Timestamp string `json:"timestamp"`
+	Sender    struct {
+		Address string `json:"address"`
+	} `json:"sender"`
+	Amount uint64 `json:"amount"`
+}

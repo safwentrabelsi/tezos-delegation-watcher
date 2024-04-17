@@ -2,34 +2,48 @@ package processor
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/safwentrabelsi/tezos-delegation-watcher/store"
 	"github.com/safwentrabelsi/tezos-delegation-watcher/types"
-	log "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
+
+type Processor interface {
+	Run(ctx context.Context, dataChannel <-chan []types.GetDelegationsResponse)
+}
 
 type processor struct {
 	store store.Storer
 }
 
-func NewProcessor(store store.Storer) *processor {
+func NewProcessor(store store.Storer) Processor {
 	return &processor{
 		store: store,
 	}
 }
 
 func (p *processor) Run(ctx context.Context, dataChannel <-chan []types.GetDelegationsResponse) {
-
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case delegations := <-dataChannel:
-			log.Infof("new delegations %+v", delegations)
-			if err := p.store.SaveDelegations(delegations); err != nil {
-				log.Error("Failed to save delegations: ", err)
+			err := p.processDelegations(ctx, delegations)
+			if err != nil {
+				logrus.Errorf("Failed to process delegations: %v", err)
 			}
-
 		}
 	}
+}
+
+func (p *processor) processDelegations(ctx context.Context, delegations []types.GetDelegationsResponse) error {
+	logrus.Infof("Processing %d delegations", len(delegations))
+
+	err := p.store.SaveDelegations(ctx, delegations)
+	if err != nil {
+		return fmt.Errorf("failed to save delegations: %w", err)
+	}
+
+	return nil
 }

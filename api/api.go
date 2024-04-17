@@ -10,7 +10,7 @@ import (
 	"github.com/penglongli/gin-metrics/ginmetrics"
 	"github.com/safwentrabelsi/tezos-delegation-watcher/config"
 	"github.com/safwentrabelsi/tezos-delegation-watcher/store"
-	log "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
 
 type DelegationQueryParams struct {
@@ -18,16 +18,17 @@ type DelegationQueryParams struct {
 }
 
 type APIServer struct {
-	listenAddr string
-	store      store.Storer
+	cfg   *config.ServerConfig
+	store store.Storer
 }
 
 func NewAPIServer(cfg *config.ServerConfig, store store.Storer) *APIServer {
 	return &APIServer{
-		listenAddr: cfg.GetListenAddress(),
-		store:      store,
+		cfg:   cfg,
+		store: store,
 	}
 }
+
 func (s *APIServer) Run() {
 	router := gin.Default()
 	metricRouter := gin.New()
@@ -35,34 +36,38 @@ func (s *APIServer) Run() {
 	m.UseWithoutExposingEndpoint(router)
 	m.SetMetricPath("/metrics")
 	m.Expose(metricRouter)
+
 	go func() {
-		log.Info(fmt.Sprintf("Metrics server started at url http://localhost:%d/metrics", 8081))
-
-		_ = metricRouter.Run(fmt.Sprintf(":%d", 8081))
-		log.Fatal("Metrics server stopped")
+		logrus.Infof("Metrics server started at url http://localhost:%d/metrics", 8081)
+		if err := metricRouter.Run(fmt.Sprintf(":%d", 8081)); err != nil {
+			logrus.Errorf("Metrics server stopped: %v", err)
+		}
 	}()
-	router.GET("/xtz/delegations", s.HandleGetDelegation)
 
-	router.Run(":8080")
+	router.GET("/xtz/delegations", s.handleGetDelegation)
+	if err := router.Run(s.cfg.GetListenAddress()); err != nil {
+		logrus.Errorf("API server stopped: %v", err)
+	}
 }
 
-func (s *APIServer) HandleGetDelegation(c *gin.Context) {
-
+func (s *APIServer) handleGetDelegation(c *gin.Context) {
 	var params DelegationQueryParams
 	if err := c.ShouldBindQuery(&params); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid query parameter", "details": err.Error()})
 		return
 	}
-	err := validateYear(params.Year)
-	if err != nil {
+
+	if err := validateYear(params.Year); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+
 	delegations, err := s.store.GetDelegations(params.Year)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+
 	c.JSON(http.StatusOK, gin.H{"data": delegations})
 }
 
@@ -71,15 +76,18 @@ func validateYear(yearStr string) error {
 	if yearStr == "" {
 		return nil
 	}
+
 	year, err := strconv.Atoi(yearStr)
 	if err != nil {
 		return err
 	}
+
 	currentYear := time.Now().Year()
 	// Get 2018 from config
 	// 2018 is the launch year of tezos mainnet
 	if year < 2018 || year > currentYear {
-		return fmt.Errorf("year must be between 2000 and %d", currentYear)
+		return fmt.Errorf("year must be between 2018 and %d", currentYear)
 	}
+
 	return nil
 }

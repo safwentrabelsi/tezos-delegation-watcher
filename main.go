@@ -32,7 +32,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to initialize Postgres store: %v", err)
 	}
-	dataChannel := make(chan []types.GetDelegationsResponse, 100)
+	dataChannel := make(chan *types.ChanMsg, 100)
 
 	tzktClient := tzkt.NewClient(cfg.Tzkt)
 	delegationPoller := poller.NewPoller(tzktClient, 15*time.Second, dataChannel, store, cfg.Tzkt.GetStartLevel())

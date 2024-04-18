@@ -18,6 +18,7 @@ type Storer interface {
 	SaveDelegations(ctx context.Context, delegations []types.GetDelegationsResponse) error
 	GetDelegations(year string) ([]types.Delegation, error)
 	GetCurrentLevel(ctx context.Context) (uint64, error)
+	DeleteDelegationsFromLevel(ctx context.Context, level uint64) error
 }
 
 // NewPostgresStore creates a new instance of PostgresStore
@@ -144,4 +145,20 @@ func (s *PostgresStore) GetCurrentLevel(ctx context.Context) (uint64, error) {
 		return 0, fmt.Errorf("failed to query database: %w", err)
 	}
 	return level, nil
+}
+
+func (s *PostgresStore) DeleteDelegationsFromLevel(ctx context.Context, level uint64) error {
+
+	stmt, err := s.db.PrepareContext(ctx, "DELETE FROM delegations WHERE level >= $1")
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	_, err = stmt.ExecContext(ctx, level)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

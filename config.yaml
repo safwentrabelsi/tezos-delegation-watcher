@@ -1,19 +1,19 @@
 server: 
   host: 0.0.0.0
   port: 8080
+  metricsPort: 8081
+  minValidYear: 2018
 log:
   level: info
-validation:
-  startYear: 2018
 tzkt:
   timeout: 10
   url: https://api.tzkt.io
-  startLevel: 5440000
 db:
   user: postgres
   dbname: delegations 
   password: postgres
   host: localhost
   port: 5432
-metrics:
-  port: 8081
+Poller:
+  startLevel: 5440000
+  

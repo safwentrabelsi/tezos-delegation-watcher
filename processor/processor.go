@@ -10,25 +10,27 @@ import (
 )
 
 type Processor interface {
-	Run(ctx context.Context, dataChannel <-chan *types.ChanMsg)
+	Run(ctx context.Context)
 }
 
 type processor struct {
-	store store.Storer
+	store       store.Storer
+	dataChannel <-chan *types.ChanMsg
 }
 
-func NewProcessor(store store.Storer) Processor {
+func NewProcessor(store store.Storer, dataChannel <-chan *types.ChanMsg) Processor {
 	return &processor{
-		store: store,
+		store:       store,
+		dataChannel: dataChannel,
 	}
 }
 
-func (p *processor) Run(ctx context.Context, dataChannel <-chan *types.ChanMsg) {
+func (p *processor) Run(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case msg := <-dataChannel:
+		case msg := <-p.dataChannel:
 			if !msg.Reorg {
 				err := p.processDelegations(ctx, msg.Data)
 				if err != nil {

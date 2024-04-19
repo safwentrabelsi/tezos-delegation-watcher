@@ -2,8 +2,8 @@ package poller
 
 import (
 	"context"
-	"time"
 
+	"github.com/safwentrabelsi/tezos-delegation-watcher/config"
 	"github.com/safwentrabelsi/tezos-delegation-watcher/store"
 	"github.com/safwentrabelsi/tezos-delegation-watcher/types"
 	"github.com/safwentrabelsi/tezos-delegation-watcher/tzkt"
@@ -11,20 +11,18 @@ import (
 )
 
 type Poller struct {
-	tzkt       tzkt.TzktInterface
-	interval   time.Duration
-	dataChan   chan<- *types.ChanMsg
-	store      store.Storer
-	startLevel uint64
+	tzkt     tzkt.TzktInterface
+	dataChan chan<- *types.ChanMsg
+	store    store.Storer
+	cfg      *config.PollerConfig
 }
 
-func NewPoller(tzkt tzkt.TzktInterface, interval time.Duration, dataChan chan<- *types.ChanMsg, store store.Storer, startLevel uint64) Poller {
+func NewPoller(tzkt tzkt.TzktInterface, dataChan chan<- *types.ChanMsg, store store.Storer, cfg *config.PollerConfig) Poller {
 	return Poller{
-		tzkt:       tzkt,
-		interval:   interval,
-		dataChan:   dataChan,
-		store:      store,
-		startLevel: startLevel,
+		tzkt:     tzkt,
+		dataChan: dataChan,
+		store:    store,
+		cfg:      cfg,
 	}
 }
 func (p *Poller) Run(ctx context.Context) {
@@ -41,7 +39,7 @@ func (p *Poller) Run(ctx context.Context) {
 	select {
 	case headLevel := <-currentHead:
 		log.Infof("Received head level: %d", headLevel)
-		startLevel := max(dbLevel+1, p.startLevel)
+		startLevel := max(dbLevel+1, p.cfg.GetStartLevel())
 
 		if headLevel > dbLevel {
 			if err := p.getPastDelegations(ctx, startLevel, headLevel); err != nil {

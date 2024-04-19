@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"time"
 
 	"github.com/safwentrabelsi/tezos-delegation-watcher/api"
 	"github.com/safwentrabelsi/tezos-delegation-watcher/config"
@@ -33,12 +32,12 @@ func main() {
 		log.Fatalf("Failed to initialize Postgres store: %v", err)
 	}
 	dataChannel := make(chan *types.ChanMsg, 100)
-
+	ctx := context.Background()
 	tzktClient := tzkt.NewClient(cfg.Tzkt)
-	delegationPoller := poller.NewPoller(tzktClient, 15*time.Second, dataChannel, store, cfg.Tzkt.GetStartLevel())
-	go delegationPoller.Run(context.TODO())
-	delegationProcessor := processor.NewProcessor(store)
-	go delegationProcessor.Run(context.TODO(), dataChannel)
+	delegationPoller := poller.NewPoller(tzktClient, dataChannel, store, cfg.Poller)
+	delegationProcessor := processor.NewProcessor(store, dataChannel)
+	go delegationPoller.Run(ctx)
+	go delegationProcessor.Run(ctx)
 	server := api.NewAPIServer(cfg.Server, store)
 	server.Run()
 

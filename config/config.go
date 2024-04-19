@@ -11,18 +11,19 @@ import (
 
 // Config contains all top-level configuration settings for the application, accessible for reading.
 type Config struct {
-	Server     *ServerConfig
-	Log        *LogConfig
-	Validation *ValidationConfig
-	Tzkt       *TzktConfig
-	DB         *DBConfig
-	Metrics    *MetricsConfig
+	Server *ServerConfig
+	Log    *LogConfig
+	Tzkt   *TzktConfig
+	DB     *DBConfig
+	Poller *PollerConfig
 }
 
 // ServerConfig contains configuration details for the server, with fields unexported for encapsulation.
 type ServerConfig struct {
-	host string
-	port int
+	host         string
+	port         int
+	metricsPort  int
+	minValidYear int
 }
 
 // LogConfig contains configuration settings for logging.
@@ -30,16 +31,10 @@ type LogConfig struct {
 	level string
 }
 
-// ValidationConfig contains settings related to data validation.
-type ValidationConfig struct {
-	startYear int
-}
-
 // TzktConfig contains configuration details for interacting with the Tzkt API.
 type TzktConfig struct {
-	timeout    int
-	url        string
-	startLevel uint64
+	timeout int
+	url     string
 	// TODO add api limit
 }
 
@@ -52,9 +47,9 @@ type DBConfig struct {
 	port     int
 }
 
-// MetricsConfig contains settings for exposing metrics on a specific port.
-type MetricsConfig struct {
-	port int
+// PollerConfig contains poller settings.
+type PollerConfig struct {
+	startLevel uint64 `yaml:"startLevel"`
 }
 
 var (
@@ -89,19 +84,17 @@ func LoadConfig(configFile string) (*Config, error) {
 		}
 
 		cfg.Server = &ServerConfig{
-			host: configYAML.Server.Host,
-			port: configYAML.Server.Port,
+			host:         configYAML.Server.Host,
+			port:         configYAML.Server.Port,
+			metricsPort:  configYAML.Server.MetricsPort,
+			minValidYear: configYAML.Server.MinValidYear,
 		}
 		cfg.Log = &LogConfig{
 			level: configYAML.Log.Level,
 		}
-		cfg.Validation = &ValidationConfig{
-			startYear: configYAML.Validation.StartYear,
-		}
 		cfg.Tzkt = &TzktConfig{
-			timeout:    configYAML.Tzkt.Timeout,
-			url:        configYAML.Tzkt.URL,
-			startLevel: configYAML.Tzkt.StartLevel,
+			timeout: configYAML.Tzkt.Timeout,
+			url:     configYAML.Tzkt.URL,
 		}
 		cfg.DB = &DBConfig{
 			user:     configYAML.DB.User,
@@ -110,8 +103,8 @@ func LoadConfig(configFile string) (*Config, error) {
 			host:     configYAML.DB.Host,
 			port:     configYAML.DB.Port,
 		}
-		cfg.Metrics = &MetricsConfig{
-			port: configYAML.Metrics.Port,
+		cfg.Poller = &PollerConfig{
+			startLevel: configYAML.Poller.StartLevel,
 		}
 	})
 
@@ -128,14 +121,19 @@ func (s *ServerConfig) GetPort() int {
 	return s.port
 }
 
+// GetMetricsPort returns the metrics port configuration from the ServerConfig.
+func (s *ServerConfig) GetMetricsPort() int {
+	return s.metricsPort
+}
+
+// GetMinValidYear returns the minnimum valid year from the ServerConfig.
+func (s *ServerConfig) GetMinValidYear() int {
+	return s.minValidYear
+}
+
 // GetLevel returns the host configuration from LogConfig.
 func (l *LogConfig) GetLevel() string {
 	return l.level
-}
-
-// GetStartYear returns the start year configuration from the ValidationConfig.
-func (v *ValidationConfig) GetStartYear() int {
-	return v.startYear
 }
 
 // GetTimeout returns the timeout configuration from the TzktConfig.
@@ -148,8 +146,8 @@ func (t *TzktConfig) GetURL() string {
 	return t.url
 }
 
-// GetStartLevel returns the start level configuration from the TzktConfig.
-func (t *TzktConfig) GetStartLevel() uint64 {
+// GetStartLevel returns the start level configuration from the pollerConfig.
+func (t *PollerConfig) GetStartLevel() uint64 {
 	return t.startLevel
 }
 
@@ -176,11 +174,6 @@ func (d *DBConfig) GetHost() string {
 // GetPort returns the port configuration from the DBConfig.
 func (d *DBConfig) GetPort() int {
 	return d.port
-}
-
-// GetPort returns the port configuration from the MetricsConfig.
-func (m *MetricsConfig) GetPort() int {
-	return m.port
 }
 
 // GetPostgresqlDSN constructs a PostgreSQL DSN from the DBConfig.

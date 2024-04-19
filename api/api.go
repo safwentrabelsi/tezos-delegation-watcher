@@ -38,8 +38,8 @@ func (s *APIServer) Run() {
 	m.Expose(metricRouter)
 
 	go func() {
-		logrus.Infof("Metrics server started at url http://localhost:%d/metrics", 8081)
-		if err := metricRouter.Run(fmt.Sprintf(":%d", 8081)); err != nil {
+		logrus.Infof("Metrics server started at url http://%s:%d/metrics", s.cfg.GetHost(), s.cfg.GetMetricsPort())
+		if err := metricRouter.Run(fmt.Sprintf(":%d", s.cfg.GetMetricsPort())); err != nil {
 			logrus.Errorf("Metrics server stopped: %v", err)
 		}
 	}()
@@ -57,7 +57,7 @@ func (s *APIServer) handleGetDelegation(c *gin.Context) {
 		return
 	}
 
-	if err := validateYear(params.Year); err != nil {
+	if err := validateYear(params.Year, s.cfg.GetMinValidYear()); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -72,7 +72,7 @@ func (s *APIServer) handleGetDelegation(c *gin.Context) {
 }
 
 // validateYear checks if the year is within a reasonable range
-func validateYear(yearStr string) error {
+func validateYear(yearStr string, minValidYear int) error {
 	if yearStr == "" {
 		return nil
 	}
@@ -83,10 +83,8 @@ func validateYear(yearStr string) error {
 	}
 
 	currentYear := time.Now().Year()
-	// Get 2018 from config
-	// 2018 is the launch year of tezos mainnet
-	if year < 2018 || year > currentYear {
-		return fmt.Errorf("year must be between 2018 and %d", currentYear)
+	if year < minValidYear || year > currentYear {
+		return fmt.Errorf("year must be between %d and %d", minValidYear, currentYear)
 	}
 
 	return nil

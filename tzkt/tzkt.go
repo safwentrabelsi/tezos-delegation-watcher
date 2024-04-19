@@ -19,6 +19,7 @@ import (
 type HttpClient interface {
 	Do(req *http.Request) (*http.Response, error)
 }
+
 type Tzkt struct {
 	url    string
 	client HttpClient
@@ -28,6 +29,8 @@ type TzktInterface interface {
 	GetDelegationsByLevel(ctx context.Context, level uint64, dataChan chan<- *types.ChanMsg) error
 	SubscribeToHead(ctx context.Context, dataChan chan<- *types.ChanMsg, currentHead chan<- uint64, errorChan chan<- error)
 }
+
+var log = logrus.WithField("module", "tzktClient")
 
 func NewClient(cfg *config.TzktConfig) *Tzkt {
 	return &Tzkt{
@@ -42,21 +45,25 @@ func (t *Tzkt) GetDelegationsByLevel(ctx context.Context, level uint64, dataChan
 	url := fmt.Sprintf("%s/v1/operations/delegations?level=%d", t.url, level)
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
+		log.Errorf("Creating request failed: %v", err)
 		return err
 	}
 
 	resp, err := t.executeRequest(ctx, req)
 	if err != nil {
+		log.Errorf("Executing request failed: %v", err)
 		return err
 	}
 
 	var delegationsResponse []types.FetchedDelegation
 	err = json.NewDecoder(resp.Body).Decode(&delegationsResponse)
 	if err != nil {
+		log.Errorf("Decoding response failed: %v", err)
 		return err
 	}
 
 	if len(delegationsResponse) > 0 {
+		log.Tracef("Sending %d delegations to channel", len(delegationsResponse))
 		dataChan <- &types.ChanMsg{
 			Level: level,
 			Reorg: false,
@@ -68,6 +75,8 @@ func (t *Tzkt) GetDelegationsByLevel(ctx context.Context, level uint64, dataChan
 }
 
 func (t *Tzkt) SubscribeToHead(ctx context.Context, dataChan chan<- *types.ChanMsg, currentHead chan<- uint64, errorChan chan<- error) {
+	log.Debug("Subscribing to TzKT WebSocket for new heads")
+
 	tzkt := events.NewTzKT(fmt.Sprintf("%s/v1/ws", t.url))
 	if err := tzkt.Connect(ctx); err != nil {
 		errorChan <- fmt.Errorf("couldn't connect to tzkt ws: %v", err)
@@ -76,23 +85,24 @@ func (t *Tzkt) SubscribeToHead(ctx context.Context, dataChan chan<- *types.ChanM
 	defer tzkt.Close()
 
 	if err := tzkt.SubscribeToHead(); err != nil {
+		log.Errorf("WebSocket subscription failed: %v", err)
 		errorChan <- fmt.Errorf("couldn't subscribe to tzkt head: %v", err)
 		return
 	}
 
 	messageQueue := make(chan events.Message, 100)
 
-	// Goroutine to listen to WebSocket and queue messages
 	go func() {
 		for msg := range tzkt.Listen() {
+			log.Tracef("Received message: %v", msg)
 			messageQueue <- msg
 		}
 		close(messageQueue)
 	}()
 
 	var initHead uint64
-	// Process messages from the queue
 	for msg := range messageQueue {
+		log.Tracef("Processing message: %v", msg)
 		switch msg.Type {
 		case events.MessageTypeState:
 			currentHead <- msg.State
@@ -101,37 +111,42 @@ func (t *Tzkt) SubscribeToHead(ctx context.Context, dataChan chan<- *types.ChanM
 			if msg.Channel == events.ChannelHead {
 				head, ok := msg.Body.(data.Head)
 				if !ok {
+					log.Errorf("Unexpected type %T for head message", msg.Body)
 					errorChan <- fmt.Errorf("unexpected type %T for head message", msg.Body)
-					continue
+					return
 				}
 				if head.Level > initHead {
+					log.Debugf("Fetching delegations for new head level: %d", head.Level)
 					err := t.GetDelegationsByLevel(ctx, head.Level, dataChan)
 					if err != nil {
 						errorChan <- fmt.Errorf("error fetching delegations: %v", err)
+						return
 					}
 				}
 			}
 		case events.MessageTypeReorg:
+			log.Debugf("Reorg detected, processing reorg for level %d", msg.State)
 			dataChan <- &types.ChanMsg{
 				Level: msg.State,
 				Reorg: true,
 			}
 		}
-		logrus.Trace("Processed message: ", msg)
 	}
 }
 
 func (t *Tzkt) executeRequest(ctx context.Context, req *http.Request) (*http.Response, error) {
+	log.Debugf("Executing HTTP request to %s", req.URL)
 	return retry.DoWithData(
 		func() (*http.Response, error) {
 			req = req.WithContext(ctx)
 			resp, err := t.client.Do(req)
 			if err != nil {
+				log.Errorf("HTTP request failed: %v", err)
 				return nil, err
 			}
 
 			if resp.StatusCode != http.StatusOK {
-				return nil, fmt.Errorf("non 200 status code: %v", resp.StatusCode)
+				return nil, fmt.Errorf("non-200 status code: %v", resp.StatusCode)
 			}
 
 			return resp, nil
@@ -139,7 +154,7 @@ func (t *Tzkt) executeRequest(ctx context.Context, req *http.Request) (*http.Res
 		retry.Context(ctx),
 		retry.Attempts(3),
 		retry.OnRetry(func(n uint, err error) {
-			logrus.Errorf("failed to fetch data err: %v, retrying...", err)
+			log.Errorf("Retry %d for error: %v", n+1, err)
 		}),
 	)
 }

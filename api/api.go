@@ -22,6 +22,8 @@ type APIServer struct {
 	store store.Storer
 }
 
+var log = logrus.WithField("module", "server")
+
 func NewAPIServer(cfg *config.ServerConfig, store store.Storer) *APIServer {
 	return &APIServer{
 		cfg:   cfg,
@@ -31,6 +33,10 @@ func NewAPIServer(cfg *config.ServerConfig, store store.Storer) *APIServer {
 
 func (s *APIServer) Run() {
 	router := gin.Default()
+
+	// Setup middlewares
+	router.Use(ValidateYearParam(s.cfg.GetMinValidYear()))
+
 	metricRouter := gin.New()
 	m := ginmetrics.GetMonitor()
 	m.UseWithoutExposingEndpoint(router)
@@ -38,31 +44,22 @@ func (s *APIServer) Run() {
 	m.Expose(metricRouter)
 
 	go func() {
-		logrus.Infof("Metrics server started at url http://%s:%d/metrics", s.cfg.GetHost(), s.cfg.GetMetricsPort())
+		log.Infof("Metrics server started at url http://%s:%d/metrics", s.cfg.GetHost(), s.cfg.GetMetricsPort())
 		if err := metricRouter.Run(fmt.Sprintf(":%d", s.cfg.GetMetricsPort())); err != nil {
-			logrus.Errorf("Metrics server stopped: %v", err)
+			log.Errorf("Metrics server stopped: %v", err)
 		}
 	}()
 
 	router.GET("/xtz/delegations", s.handleGetDelegation)
 	if err := router.Run(s.cfg.GetListenAddress()); err != nil {
-		logrus.Errorf("API server stopped: %v", err)
+		log.Errorf("API server stopped: %v", err)
 	}
 }
 
 func (s *APIServer) handleGetDelegation(c *gin.Context) {
-	var params DelegationQueryParams
-	if err := c.ShouldBindQuery(&params); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid query parameter", "details": err.Error()})
-		return
-	}
 
-	if err := validateYear(params.Year, s.cfg.GetMinValidYear()); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	delegations, err := s.store.GetDelegations(params.Year)
+	year := c.Query("year")
+	delegations, err := s.store.GetDelegations(year)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -71,21 +68,24 @@ func (s *APIServer) handleGetDelegation(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": delegations})
 }
 
-// validateYear checks if the year is within a reasonable range
-func validateYear(yearStr string, minValidYear int) error {
-	if yearStr == "" {
-		return nil
-	}
+func ValidateYearParam(minValidYear int) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		yearStr := c.Query("year")
+		if yearStr != "" {
+			year, err := strconv.Atoi(yearStr)
+			if err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Year must be a valid number"})
+				c.Abort()
+				return
+			}
 
-	year, err := strconv.Atoi(yearStr)
-	if err != nil {
-		return err
+			currentYear := time.Now().Year()
+			if year < minValidYear || year > currentYear {
+				c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Year must be between %d and %d", minValidYear, currentYear)})
+				c.Abort()
+				return
+			}
+		}
+		c.Next()
 	}
-
-	currentYear := time.Now().Year()
-	if year < minValidYear || year > currentYear {
-		return fmt.Errorf("year must be between %d and %d", minValidYear, currentYear)
-	}
-
-	return nil
 }

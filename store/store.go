@@ -8,11 +8,14 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/safwentrabelsi/tezos-delegation-watcher/config"
 	"github.com/safwentrabelsi/tezos-delegation-watcher/types"
+	"github.com/sirupsen/logrus"
 )
 
 type PostgresStore struct {
 	db *sql.DB
 }
+
+var logger = logrus.WithField("module", "Storer")
 
 type Storer interface {
 	SaveDelegations(ctx context.Context, delegations []types.FetchedDelegation) error

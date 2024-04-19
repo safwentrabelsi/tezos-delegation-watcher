@@ -2,6 +2,7 @@ package poller
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/safwentrabelsi/tezos-delegation-watcher/config"
 	"github.com/safwentrabelsi/tezos-delegation-watcher/store"
@@ -59,8 +60,7 @@ func (p *Poller) getPastDelegations(ctx context.Context, startLevel, endLevel ui
 	for i := startLevel; i <= endLevel; i++ {
 		err := p.tzkt.GetDelegationsByLevel(ctx, i, p.dataChan)
 		if err != nil {
-			log.Errorf("Error fetching delegations for level %d: %v", i, err)
-			continue // Maybe retry fetching this level
+			return fmt.Errorf("Error fetching delegations for level %d: %v", i, err)
 		}
 	}
 	return nil

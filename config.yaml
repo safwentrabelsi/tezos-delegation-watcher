@@ -14,6 +14,6 @@ db:
   password: postgres
   host: localhost
   port: 5432
-Poller:
+poller:
   startLevel: 5440000
   

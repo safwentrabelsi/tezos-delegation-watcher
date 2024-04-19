@@ -1,5 +1,5 @@
 BUILD_FOLDER  ?= build
-BINARY_NAME   ?= near-delegation-watcher
+BINARY_NAME   ?= tezos-delegation-watcher
 
 .PHONY: build
 build:

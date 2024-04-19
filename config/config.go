@@ -49,7 +49,7 @@ type DBConfig struct {
 
 // PollerConfig contains poller settings.
 type PollerConfig struct {
-	startLevel uint64 `yaml:"startLevel"`
+	startLevel uint64
 }
 
 var (
@@ -83,6 +83,11 @@ func LoadConfig(configFile string) (*Config, error) {
 			return
 		}
 
+		// Perform validation
+		if err := validate.Struct(configYAML); err != nil {
+			loadErr = fmt.Errorf("validation error: %v", err)
+			return
+		}
 		cfg.Server = &ServerConfig{
 			host:         configYAML.Server.Host,
 			port:         configYAML.Server.Port,

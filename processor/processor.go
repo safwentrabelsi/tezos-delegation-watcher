@@ -47,7 +47,7 @@ func (p *processor) Run(ctx context.Context) {
 	}
 }
 
-func (p *processor) processDelegations(ctx context.Context, delegations []types.GetDelegationsResponse) error {
+func (p *processor) processDelegations(ctx context.Context, delegations []types.FetchedDelegation) error {
 	logrus.Infof("Processing %d delegations", len(delegations))
 	logrus.Infof("Processing %+v", delegations)
 

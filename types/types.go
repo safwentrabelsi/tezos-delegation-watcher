@@ -10,7 +10,7 @@ type Delegation struct {
 
 // GetDelegationsResponse is the response from Tzkt api
 // change name to RawDelegation
-type GetDelegationsResponse struct {
+type FetchedDelegation struct {
 	Level     uint64 `json:"level"`
 	Timestamp string `json:"timestamp"`
 	Sender    struct {
@@ -22,5 +22,5 @@ type GetDelegationsResponse struct {
 type ChanMsg struct {
 	Level uint64
 	Reorg bool
-	Data  []GetDelegationsResponse
+	Data  []FetchedDelegation
 }

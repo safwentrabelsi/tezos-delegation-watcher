@@ -15,7 +15,7 @@ type PostgresStore struct {
 }
 
 type Storer interface {
-	SaveDelegations(ctx context.Context, delegations []types.GetDelegationsResponse) error
+	SaveDelegations(ctx context.Context, delegations []types.FetchedDelegation) error
 	GetDelegations(year string) ([]types.Delegation, error)
 	GetCurrentLevel(ctx context.Context) (uint64, error)
 	DeleteDelegationsFromLevel(ctx context.Context, level uint64) error
@@ -67,7 +67,7 @@ func (s *PostgresStore) createDelegationTable() error {
 	return nil
 }
 
-func (s *PostgresStore) SaveDelegations(ctx context.Context, delegations []types.GetDelegationsResponse) error {
+func (s *PostgresStore) SaveDelegations(ctx context.Context, delegations []types.FetchedDelegation) error {
 	if len(delegations) == 0 {
 		return nil
 	}

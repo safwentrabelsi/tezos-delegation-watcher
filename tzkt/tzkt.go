@@ -50,7 +50,7 @@ func (t *Tzkt) GetDelegationsByLevel(ctx context.Context, level uint64, dataChan
 		return err
 	}
 
-	var delegationsResponse []types.GetDelegationsResponse
+	var delegationsResponse []types.FetchedDelegation
 	err = json.NewDecoder(resp.Body).Decode(&delegationsResponse)
 	if err != nil {
 		return err

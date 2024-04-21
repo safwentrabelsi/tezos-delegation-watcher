@@ -1,30 +1,31 @@
 package api
 
 import (
+	"context"
 	"fmt"
 	"net/http"
-	"strconv"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/penglongli/gin-metrics/ginmetrics"
 	"github.com/safwentrabelsi/tezos-delegation-watcher/config"
-	"github.com/safwentrabelsi/tezos-delegation-watcher/store"
+	"github.com/safwentrabelsi/tezos-delegation-watcher/types"
 	"github.com/sirupsen/logrus"
 )
 
-type DelegationQueryParams struct {
-	Year string `form:"year" binding:"omitempty,numeric"`
-}
-
 type APIServer struct {
 	cfg   *config.ServerConfig
-	store store.Storer
+	store storeInterface
 }
 
 var log = logrus.WithField("module", "server")
 
-func NewAPIServer(cfg *config.ServerConfig, store store.Storer) *APIServer {
+// Created a specific interface for the server since we only need GetDelegations
+// It makes it easier to mock
+type storeInterface interface {
+	GetDelegations(ctx context.Context, year string) ([]types.Delegation, error)
+}
+
+func NewAPIServer(cfg *config.ServerConfig, store storeInterface) *APIServer {
 	return &APIServer{
 		cfg:   cfg,
 		store: store,
@@ -52,7 +53,7 @@ func (s *APIServer) Run() {
 
 	router.GET("/xtz/delegations", s.handleGetDelegation)
 	if err := router.Run(s.cfg.GetListenAddress()); err != nil {
-		log.Errorf("API server stopped: %v", err)
+		log.Fatalf("API server stopped: %v", err)
 	}
 }
 
@@ -66,26 +67,4 @@ func (s *APIServer) handleGetDelegation(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"data": delegations})
-}
-
-func ValidateYearParam(minValidYear int) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		yearStr := c.Query("year")
-		if yearStr != "" {
-			year, err := strconv.Atoi(yearStr)
-			if err != nil {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "Year must be a valid number"})
-				c.Abort()
-				return
-			}
-
-			currentYear := time.Now().Year()
-			if year < minValidYear || year > currentYear {
-				c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Year must be between %d and %d", minValidYear, currentYear)})
-				c.Abort()
-				return
-			}
-		}
-		c.Next()
-	}
 }

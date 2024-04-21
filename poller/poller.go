@@ -5,23 +5,25 @@ import (
 	"fmt"
 
 	"github.com/safwentrabelsi/tezos-delegation-watcher/config"
-	"github.com/safwentrabelsi/tezos-delegation-watcher/store"
 	"github.com/safwentrabelsi/tezos-delegation-watcher/types"
 	"github.com/safwentrabelsi/tezos-delegation-watcher/tzkt"
 	"github.com/sirupsen/logrus"
 )
 
+type storeInterface interface {
+	GetCurrentLevel(ctx context.Context) (uint64, error)
+}
 type Poller struct {
 	tzkt      tzkt.TzktInterface
 	dataChan  chan<- *types.ChanMsg
-	store     store.Storer
+	store     storeInterface
 	cfg       *config.PollerConfig
 	errorChan chan<- error
 }
 
 var log = logrus.WithField("module", "poller")
 
-func NewPoller(tzkt tzkt.TzktInterface, dataChan chan<- *types.ChanMsg, store store.Storer, cfg *config.PollerConfig, errorChan chan<- error) Poller {
+func NewPoller(tzkt tzkt.TzktInterface, dataChan chan<- *types.ChanMsg, store storeInterface, cfg *config.PollerConfig, errorChan chan<- error) Poller {
 	return Poller{
 		tzkt:      tzkt,
 		dataChan:  dataChan,

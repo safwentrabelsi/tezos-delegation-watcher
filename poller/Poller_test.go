@@ -86,7 +86,6 @@ func TestPoller_Run(t *testing.T) {
 		dataChan := make(chan *types.ChanMsg)
 		errorChan := make(chan error)
 
-		mockStoreInstance.On("GetCurrentLevel", mock.Anything).Return(uint64(100), nil)
 		mockTzktInstance.On("SubscribeToHead", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
 			errorChan := args.Get(3).(chan<- error)
 			errorChan <- errors.New("couldn't connect to tzkt ws: connection failed")
@@ -96,14 +95,42 @@ func TestPoller_Run(t *testing.T) {
 
 		poller := NewPoller(mockTzktInstance, dataChan, mockStoreInstance, cfg, errorChan)
 
-		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		go poller.Run(ctx)
 
-		assert.Equal(t, (<-errorChan).Error(), "couldn't connect to tzkt ws: connection failed")
+		assert.Equal(t, (<-errorChan).Error(), "maximum reconnection attempts reached: couldn't connect to tzkt ws: connection failed")
 
 		mockTzktInstance.AssertExpectations(t)
+
+	})
+	t.Run("Get current level error", func(t *testing.T) {
+
+		mockTzktInstance := new(mockTzkt)
+		mockStoreInstance := new(mockStore)
+		dataChan := make(chan *types.ChanMsg)
+		errorChan := make(chan error)
+
+		mockStoreInstance.On("GetCurrentLevel", mock.Anything).Return(uint64(100), errors.New("db error"))
+		mockTzktInstance.On("SubscribeToHead", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+			currentHead := args.Get(2).(chan<- uint64)
+			currentHead <- 101
+		})
+		mockTzktInstance.On("GetDelegationsByLevel", mock.Anything, uint64(101), mock.Anything).Return(nil)
+
+		cfg := &config.PollerConfig{}
+
+		poller := NewPoller(mockTzktInstance, dataChan, mockStoreInstance, cfg, errorChan)
+
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		go poller.Run(ctx)
+
+		// no retries for db errors
+		assert.Equal(t, (<-errorChan).Error(), "Error getting current database level: db error")
+
 		mockStoreInstance.AssertExpectations(t)
+		mockTzktInstance.AssertExpectations(t)
 
 	})
 

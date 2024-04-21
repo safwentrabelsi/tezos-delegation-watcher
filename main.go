@@ -35,7 +35,11 @@ func main() {
 	defer cancel()
 
 	errorChan := make(chan error, 2)
+	defer close(errorChan)
+
 	dataChannel := make(chan *types.ChanMsg, 100)
+	defer close(dataChannel)
+
 	tzktClient := tzkt.NewClient(cfg.Tzkt)
 
 	delegationPoller := poller.NewPoller(tzktClient, dataChannel, store, cfg.Poller, errorChan)

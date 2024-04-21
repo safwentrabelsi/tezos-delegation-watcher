@@ -3,6 +3,7 @@ package poller
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/safwentrabelsi/tezos-delegation-watcher/config"
 	"github.com/safwentrabelsi/tezos-delegation-watcher/types"
@@ -34,31 +35,63 @@ func NewPoller(tzkt tzkt.TzktInterface, dataChan chan<- *types.ChanMsg, store st
 }
 
 func (p *Poller) Run(ctx context.Context) {
-	dbLevel, err := p.store.GetCurrentLevel(ctx)
-	if err != nil {
-		p.errorChan <- fmt.Errorf("Error getting current database level: %v", err)
-		return
-	}
-	log.Debugf("Database level retrieved: %d", dbLevel)
+	attempt := 0
+	maxAttempts := 3
 
-	currentHead := make(chan uint64)
-	go p.tzkt.SubscribeToHead(ctx, p.dataChan, currentHead, p.errorChan)
-	for {
-		select {
-		case headLevel := <-currentHead:
-			log.Infof("Received chain current head level: %d", headLevel)
-			startLevel := max(dbLevel+1, p.cfg.GetStartLevel())
+	connect := func() error {
+		currentHead := make(chan uint64)
+		defer close(currentHead)
 
-			if headLevel > dbLevel {
-				log.Debugf("Fetching past delegations from level %d to %d", startLevel, headLevel)
-				if err := p.getPastDelegations(ctx, startLevel, headLevel); err != nil {
-					p.errorChan <- fmt.Errorf("Error fetching past delegations: %v", err)
-				} else {
+		errChan := make(chan error, 1)
+		defer close(errChan)
+
+		go p.tzkt.SubscribeToHead(ctx, p.dataChan, currentHead, errChan)
+
+		for {
+			select {
+			// if there is a problem with SubscribeToHead the connect function will return an error
+			// and before this error is pushed to the main error channel we retry to connect
+			case err := <-errChan:
+				return err
+			// to be sure there is no delta between past blocks and blocks comming from the ws
+			case headLevel := <-currentHead:
+				dbLevel, err := p.store.GetCurrentLevel(ctx)
+				if err != nil {
+					p.errorChan <- fmt.Errorf("Error getting current database level: %v", err)
+				}
+				log.Debugf("Database level retrieved: %d", dbLevel)
+				log.Infof("Received chain current head level: %d", headLevel)
+
+				startLevel := max(dbLevel+1, p.cfg.GetStartLevel())
+				if headLevel > dbLevel {
+					log.Debugf("Fetching past delegations from level %d to %d", startLevel, headLevel)
+					if err := p.getPastDelegations(ctx, startLevel, headLevel); err != nil {
+						p.errorChan <- fmt.Errorf("Error fetching past delegations: %v", err)
+					}
 					log.Infof("Past delegations successfully fetched and processed from level %d to %d", startLevel, headLevel)
 				}
+			case <-ctx.Done():
+				log.Info("Poller shutdown initiated, stopping operations")
+				return nil
 			}
-		case <-ctx.Done():
-			log.Info("Poller shutdown initiated, stopping operations")
+		}
+	}
+
+	for {
+		err := connect()
+		if err == nil || ctx.Err() != nil {
+			log.Debug("Stopping reconnection attempts")
+			return
+		}
+
+		if attempt < maxAttempts {
+			waitTime := 1 * time.Second
+			log.Errorf("Attempt %d: Connection failed with error: %v. Retrying in %v...", attempt+1, err, waitTime)
+			time.Sleep(waitTime)
+			attempt++
+		} else {
+			// if we attempted max retries with no success we push the error to the main errorChan which will stop the server
+			p.errorChan <- fmt.Errorf("maximum reconnection attempts reached: %v", err)
 			return
 		}
 	}

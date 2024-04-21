@@ -4,7 +4,7 @@ server:
   metricsPort: 8081
   minValidYear: 2018
 log:
-  level: debug
+  level: info
 tzkt:
   timeout: 10
   url: https://api.tzkt.io

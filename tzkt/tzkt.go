@@ -113,6 +113,9 @@ func (t *Tzkt) SubscribeToHead(ctx context.Context, dataChan chan<- *types.ChanM
 		log.Tracef("Processing message: %v", msg)
 		switch msg.Type {
 		case events.MessageTypeState:
+			// this is the first message received from the ws
+			// we use this state as the limit between blocks that will be processed by the ws
+			// and blocks that will be processed by the getPastDelegations function
 			currentHead <- msg.State
 			initHead = msg.State
 		case events.MessageTypeData:

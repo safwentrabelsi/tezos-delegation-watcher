@@ -41,7 +41,7 @@ func (p *processor) Run(ctx context.Context) {
 				continue
 			}
 			if !msg.Reorg {
-				log.Debugf("Received new delegations at level %d", msg.Level)
+				log.Infof("Received new delegations at level %d", msg.Level)
 				err := p.processDelegations(ctx, msg.Data)
 				if err != nil {
 					log.WithError(err).Error("Failed to process delegations")

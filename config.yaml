@@ -15,5 +15,5 @@ db:
   host: localhost
   port: 5432
 poller:
-  startLevel: 5440000
+  startLevel: 5470000
   

@@ -34,7 +34,7 @@ func NewPoller(tzkt tzkt.TzktInterface, dataChan chan<- *types.ChanMsg, store st
 func (p *Poller) Run(ctx context.Context) {
 	dbLevel, err := p.store.GetCurrentLevel(ctx)
 	if err != nil {
-		log.Errorf("Error getting current database level: %v", err)
+		p.errorChan <- fmt.Errorf("Error getting current database level: %v", err)
 		return
 	}
 	log.Debugf("Database level retrieved: %d", dbLevel)
@@ -44,7 +44,7 @@ func (p *Poller) Run(ctx context.Context) {
 	for {
 		select {
 		case headLevel := <-currentHead:
-			log.Infof("Received new head level: %d", headLevel)
+			log.Infof("Received chain current head level: %d", headLevel)
 			startLevel := max(dbLevel+1, p.cfg.GetStartLevel())
 
 			if headLevel > dbLevel {

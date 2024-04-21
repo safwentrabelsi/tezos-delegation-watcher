@@ -56,7 +56,7 @@ func (s *PostgresStore) createDelegationTable() error {
 		CREATE TABLE IF NOT EXISTS delegations (
 			id SERIAL PRIMARY KEY,
 			timestamp TIMESTAMP NOT NULL,
-			amount TEXT NOT NULL,
+			amount BIGINT NOT NULL,
 			delegator TEXT NOT NULL,
 			block INT NOT NULL
 		);
@@ -111,7 +111,7 @@ func (s *PostgresStore) GetDelegations(year string) ([]types.Delegation, error) 
 		query := `
 			SELECT timestamp, amount, delegator, block
 			FROM delegations
-			WHERE EXTRACT(YEAR FROM timestamp::date) = $1
+			WHERE EXTRACT(YEAR FROM timestamp) = $1
 			ORDER BY timestamp DESC
 		`
 		rows, err = s.db.Query(query, year)

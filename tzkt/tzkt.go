@@ -20,9 +20,16 @@ type HttpClient interface {
 	Do(req *http.Request) (*http.Response, error)
 }
 
+type WebSocketClient interface {
+	Connect(ctx context.Context) error
+	SubscribeToHead() error
+	Listen() <-chan events.Message
+	Close() error
+}
 type Tzkt struct {
-	url    string
-	client HttpClient
+	url      string
+	client   HttpClient
+	wsClient WebSocketClient
 }
 
 type TzktInterface interface {
@@ -37,7 +44,9 @@ func NewClient(cfg *config.TzktConfig) *Tzkt {
 		url: cfg.GetURL(),
 		client: &http.Client{
 			Timeout: time.Duration(cfg.GetTimeout()) * time.Second,
-		}}
+		},
+		wsClient: events.NewTzKT(fmt.Sprintf("%s/v1/ws", cfg.GetURL())),
+	}
 
 }
 
@@ -77,14 +86,13 @@ func (t *Tzkt) GetDelegationsByLevel(ctx context.Context, level uint64, dataChan
 func (t *Tzkt) SubscribeToHead(ctx context.Context, dataChan chan<- *types.ChanMsg, currentHead chan<- uint64, errorChan chan<- error) {
 	log.Debug("Subscribing to TzKT WebSocket for new heads")
 
-	tzkt := events.NewTzKT(fmt.Sprintf("%s/v1/ws", t.url))
-	if err := tzkt.Connect(ctx); err != nil {
+	if err := t.wsClient.Connect(ctx); err != nil {
 		errorChan <- fmt.Errorf("couldn't connect to tzkt ws: %v", err)
 		return
 	}
-	defer tzkt.Close()
+	defer t.wsClient.Close()
 
-	if err := tzkt.SubscribeToHead(); err != nil {
+	if err := t.wsClient.SubscribeToHead(); err != nil {
 		log.Errorf("WebSocket subscription failed: %v", err)
 		errorChan <- fmt.Errorf("couldn't subscribe to tzkt head: %v", err)
 		return
@@ -93,7 +101,7 @@ func (t *Tzkt) SubscribeToHead(ctx context.Context, dataChan chan<- *types.ChanM
 	messageQueue := make(chan events.Message, 100)
 
 	go func() {
-		for msg := range tzkt.Listen() {
+		for msg := range t.wsClient.Listen() {
 			log.Tracef("Received message: %v", msg)
 			messageQueue <- msg
 		}
@@ -116,7 +124,7 @@ func (t *Tzkt) SubscribeToHead(ctx context.Context, dataChan chan<- *types.ChanM
 					return
 				}
 				if head.Level > initHead {
-					log.Debugf("Fetching delegations for new head level: %d", head.Level)
+					log.Infof("Fetching delegations for new head level: %d", head.Level)
 					err := t.GetDelegationsByLevel(ctx, head.Level, dataChan)
 					if err != nil {
 						errorChan <- fmt.Errorf("error fetching delegations: %v", err)
@@ -135,7 +143,7 @@ func (t *Tzkt) SubscribeToHead(ctx context.Context, dataChan chan<- *types.ChanM
 }
 
 func (t *Tzkt) executeRequest(ctx context.Context, req *http.Request) (*http.Response, error) {
-	log.Debugf("Executing HTTP request to %s", req.URL)
+	log.Tracef("Executing HTTP request to %s", req.URL)
 	return retry.DoWithData(
 		func() (*http.Response, error) {
 			req = req.WithContext(ctx)

@@ -48,7 +48,7 @@ func (p *processor) Run(ctx context.Context) {
 					p.errorChan <- err
 				}
 			} else {
-				log.Debugf("Received reorg command for level %d", msg.Level)
+				log.Infof("Received reorg command for level %d", msg.Level)
 				err := p.processReorg(ctx, msg.Level)
 				if err != nil {
 					log.WithError(err).Error("Failed to process reorg")
@@ -67,7 +67,6 @@ func (p *processor) processDelegations(ctx context.Context, delegations []types.
 	log.Infof("Processing %d delegations", len(delegations))
 	err := p.store.SaveDelegations(ctx, delegations)
 	if err != nil {
-		log.WithError(err).Error("Failed to save delegations")
 		return fmt.Errorf("failed to save delegations: %w", err)
 	}
 	log.Info("Delegations processed and saved successfully")
@@ -78,7 +77,6 @@ func (p *processor) processReorg(ctx context.Context, level uint64) error {
 	log.Infof("Processing reorganization from block level %d", level)
 	err := p.store.DeleteDelegationsFromLevel(ctx, level)
 	if err != nil {
-		log.WithError(err).Error("Failed to delete delegations during reorg")
 		return fmt.Errorf("failed to delete delegations: %w", err)
 	}
 	log.Info("Reorganization processed successfully")

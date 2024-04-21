@@ -19,7 +19,7 @@ var logger = logrus.WithField("module", "Storer")
 
 type Storer interface {
 	SaveDelegations(ctx context.Context, delegations []types.FetchedDelegation) error
-	GetDelegations(year string) ([]types.Delegation, error)
+	GetDelegations(ctx context.Context, year string) ([]types.Delegation, error)
 	GetCurrentLevel(ctx context.Context) (uint64, error)
 	DeleteDelegationsFromLevel(ctx context.Context, level uint64) error
 }
@@ -103,7 +103,7 @@ func (s *PostgresStore) SaveDelegations(ctx context.Context, delegations []types
 
 	return nil
 }
-func (s *PostgresStore) GetDelegations(year string) ([]types.Delegation, error) {
+func (s *PostgresStore) GetDelegations(ctx context.Context, year string) ([]types.Delegation, error) {
 	var rows *sql.Rows
 	var err error
 
@@ -114,14 +114,14 @@ func (s *PostgresStore) GetDelegations(year string) ([]types.Delegation, error) 
 			WHERE EXTRACT(YEAR FROM timestamp) = $1
 			ORDER BY timestamp DESC
 		`
-		rows, err = s.db.Query(query, year)
+		rows, err = s.db.QueryContext(ctx, query, year)
 	} else {
 		query := `
 			SELECT timestamp, amount, delegator, block
 			FROM delegations
 			ORDER BY timestamp DESC
 		`
-		rows, err = s.db.Query(query)
+		rows, err = s.db.QueryContext(ctx, query)
 	}
 
 	if err != nil {

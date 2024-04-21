@@ -59,7 +59,7 @@ func (s *APIServer) Run() {
 func (s *APIServer) handleGetDelegation(c *gin.Context) {
 
 	year := c.Query("year")
-	delegations, err := s.store.GetDelegations(year)
+	delegations, err := s.store.GetDelegations(c.Request.Context(), year)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

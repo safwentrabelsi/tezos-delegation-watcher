@@ -8,15 +8,17 @@ type Delegation struct {
 	Block     uint64 `json:"block"`
 }
 
-// GetDelegationsResponse is the response from Tzkt api
-// change name to RawDelegation
+// Sender represents the sender of a delegation.
+type Sender struct {
+	Address string `json:"address"`
+}
+
+// FetchedDelegation is the response from Tzkt api
 type FetchedDelegation struct {
 	Level     uint64 `json:"level"`
 	Timestamp string `json:"timestamp"`
-	Sender    struct {
-		Address string `json:"address"`
-	} `json:"sender"`
-	Amount uint64 `json:"amount"`
+	Sender    Sender `json:"sender"`
+	Amount    uint64 `json:"amount"`
 }
 
 type ChanMsg struct {

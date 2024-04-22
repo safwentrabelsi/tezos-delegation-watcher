@@ -1,5 +1,6 @@
 BUILD_FOLDER  ?= build
 BINARY_NAME   ?= tezos-delegation-watcher
+CONFIG_PATH   ?= config.yaml
 
 .PHONY: build
 build:
@@ -14,7 +15,7 @@ test:
 .PHONY: run
 run: build
 	@echo "Running the application..."
-	@./$(BUILD_FOLDER)/$(BINARY_NAME)
+	@CONFIG_PATH=$(CONFIG_PATH) ./$(BUILD_FOLDER)/$(BINARY_NAME)
 
 .PHONY: clean	
 clean:

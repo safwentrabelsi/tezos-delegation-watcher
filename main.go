@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"os"
 
 	"github.com/safwentrabelsi/tezos-delegation-watcher/api"
 	"github.com/safwentrabelsi/tezos-delegation-watcher/config"
@@ -15,7 +16,12 @@ import (
 )
 
 func main() {
-	cfg, err := config.LoadConfig("config.yaml")
+	configPath := os.Getenv("CONFIG_PATH")
+	if configPath == "" {
+		log.Warn("CONFIG_PATH environment variable is not set default is ./config.yaml")
+		configPath = "config.yaml"
+	}
+	cfg, err := config.LoadConfig(configPath)
 	if err != nil {
 		log.Fatalf("Error loading config: %v", err)
 	}

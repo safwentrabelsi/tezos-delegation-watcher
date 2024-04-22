@@ -69,7 +69,7 @@ func (p *poller) Run(ctx context.Context) {
 				if err != nil {
 					p.errorChan <- fmt.Errorf("Error getting current database level: %v", err)
 				}
-				log.Debugf("Database level retrieved: %d", dbLevel)
+				log.Infof("Database level retrieved: %d", dbLevel)
 				log.Infof("Received chain current head level: %d", headLevel)
 
 				startLevel := max(dbLevel+1, p.cfg.GetStartLevel())

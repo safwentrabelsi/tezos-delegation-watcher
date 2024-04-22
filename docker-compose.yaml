@@ -1,4 +1,4 @@
-version: '3.1'
+version: '3.8'
 
 services:
   db:
@@ -20,3 +20,7 @@ services:
   #     - "8081:8081"  
   #   depends_on:
   #     - db
+  #   environment:
+  #     CONFIG_PATH: config.yaml
+  #     GIN_MODE: release
+

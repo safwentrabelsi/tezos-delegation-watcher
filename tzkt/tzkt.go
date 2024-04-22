@@ -63,6 +63,7 @@ func (t *Tzkt) GetDelegationsByLevel(ctx context.Context, level uint64, dataChan
 		log.Errorf("Executing request failed: %v", err)
 		return err
 	}
+	defer resp.Body.Close()
 
 	var delegationsResponse []types.FetchedDelegation
 	err = json.NewDecoder(resp.Body).Decode(&delegationsResponse)

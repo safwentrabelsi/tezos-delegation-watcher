@@ -22,6 +22,7 @@ func Init() error {
 
 // I wanted to know how many reorg message are there
 func initReceivedReogMsgCount() error {
+
 	counter := &ginmetrics.Metric{
 		Type:        ginmetrics.Counter,
 		Name:        reorgMsgCountMetricsName,

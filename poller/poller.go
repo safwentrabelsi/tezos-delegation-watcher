@@ -36,7 +36,7 @@ func NewPoller(tzkt tzkt.TzktInterface, dataChan chan<- *types.ChanMsg, store st
 
 func (p *Poller) Run(ctx context.Context) {
 	attempt := 0
-	maxAttempts := 3
+	maxAttempts := 2
 
 	connect := func() error {
 		currentHead := make(chan uint64)
@@ -80,10 +80,12 @@ func (p *Poller) Run(ctx context.Context) {
 	for {
 		err := connect()
 		if err == nil || ctx.Err() != nil {
+			// Reset attempt to zero to have the maximum retries for the next failure
+			attempt = 0
 			log.Debug("Stopping reconnection attempts")
 			return
 		}
-
+		// The retry logic is here because we should be aware in case of block delta when the connection was closed
 		if attempt < maxAttempts {
 			waitTime := 1 * time.Second
 			log.Errorf("Attempt %d: Connection failed with error: %v. Retrying in %v...", attempt+1, err, waitTime)

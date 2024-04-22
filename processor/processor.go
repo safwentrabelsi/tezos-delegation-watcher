@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/safwentrabelsi/tezos-delegation-watcher/metrics"
 	"github.com/safwentrabelsi/tezos-delegation-watcher/store"
 	"github.com/safwentrabelsi/tezos-delegation-watcher/types"
 	"github.com/sirupsen/logrus"
@@ -49,6 +50,7 @@ func (p *processor) Run(ctx context.Context) {
 				}
 			} else {
 				log.Infof("Received reorg command for level %d", msg.Level)
+				metrics.ReorgMsgCountInc()
 				err := p.processReorg(ctx, msg.Level)
 				if err != nil {
 					log.WithError(err).Error("Failed to process reorg")

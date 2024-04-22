@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/penglongli/gin-metrics/ginmetrics"
 	"github.com/safwentrabelsi/tezos-delegation-watcher/config"
+	"github.com/safwentrabelsi/tezos-delegation-watcher/metrics"
 	"github.com/safwentrabelsi/tezos-delegation-watcher/types"
 	"github.com/sirupsen/logrus"
 )
@@ -48,6 +49,9 @@ func (s *APIServer) Run() {
 		log.Infof("Metrics server started at url http://%s:%d/metrics", s.cfg.GetHost(), s.cfg.GetMetricsPort())
 		if err := metricRouter.Run(fmt.Sprintf(":%d", s.cfg.GetMetricsPort())); err != nil {
 			log.Errorf("Metrics server stopped: %v", err)
+		}
+		if err := metrics.Init(); err != nil {
+			log.Errorf(fmt.Sprintf("Metrics init failed: %s", err))
 		}
 	}()
 

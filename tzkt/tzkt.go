@@ -100,6 +100,7 @@ func (t *Tzkt) SubscribeToHead(ctx context.Context, dataChan chan<- *types.ChanM
 
 	messageQueue := make(chan events.Message, 100)
 
+	// Asynchronous reception and synchronous processing for ws
 	go func() {
 		for msg := range t.wsClient.Listen() {
 			log.Tracef("Received message: %v", msg)

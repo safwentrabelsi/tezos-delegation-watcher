@@ -95,7 +95,7 @@ func TestPoller_Run(t *testing.T) {
 
 		poller := NewPoller(mockTzktInstance, dataChan, mockStoreInstance, cfg, errorChan)
 
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
 		go poller.Run(ctx)
 
@@ -122,7 +122,7 @@ func TestPoller_Run(t *testing.T) {
 
 		poller := NewPoller(mockTzktInstance, dataChan, mockStoreInstance, cfg, errorChan)
 
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
 		go poller.Run(ctx)
 

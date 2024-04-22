@@ -18,5 +18,6 @@ db:
 poller:
   startLevel: 5479747
   retryAttempts: 3
+  fetchOld: true
 
   

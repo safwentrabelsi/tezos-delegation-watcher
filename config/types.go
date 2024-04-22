@@ -43,6 +43,7 @@ type logConfigYAML struct {
 type pollerConfigYAML struct {
 	StartLevel    uint64 `yaml:"startLevel" validate:"required"`
 	RetryAttempts int    `yaml:"retryAttempts" validate:"required,gte=0"`
+	FetchOld      bool   `yaml:"fetchOld"`
 }
 
 var validate *validator.Validate

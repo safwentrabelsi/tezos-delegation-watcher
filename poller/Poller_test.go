@@ -48,6 +48,9 @@ func (m *mockConfig) GetStartLevel() uint64 {
 func (m *mockConfig) GetRetryAttempts() int {
 	return 2
 }
+func (m *mockConfig) GetFetchOld() bool {
+	return true
+}
 
 func TestPoller_Run(t *testing.T) {
 

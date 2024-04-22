@@ -51,6 +51,7 @@ type DBConfig struct {
 type PollerConfig struct {
 	startLevel    uint64
 	retryAttempts int
+	fetchOld      bool
 }
 
 var (
@@ -112,7 +113,8 @@ func LoadConfig(configFile string) (*Config, error) {
 		}
 		cfg.Poller = &PollerConfig{
 			startLevel:    configYAML.Poller.StartLevel,
-			retryAttempts: configYAML.Tzkt.RetryAttempts,
+			retryAttempts: configYAML.Poller.RetryAttempts,
+			fetchOld:      configYAML.Poller.FetchOld,
 		}
 	})
 
@@ -167,6 +169,11 @@ func (p *PollerConfig) GetStartLevel() uint64 {
 // GetRetryAttempts returns the maximum retry attempts from the pollerConfig.
 func (p *PollerConfig) GetRetryAttempts() int {
 	return p.retryAttempts
+}
+
+// GetRetryAttempts returns fetchOld bool from the pollerConfig.
+func (p *PollerConfig) GetFetchOld() bool {
+	return p.fetchOld
 }
 
 // GetUser returns the user configuration from the DBConfig.

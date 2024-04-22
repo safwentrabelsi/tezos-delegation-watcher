@@ -17,6 +17,7 @@ type storeInterface interface {
 type configInterface interface {
 	GetStartLevel() uint64
 	GetRetryAttempts() int
+	GetFetchOld() bool
 }
 
 type poller struct {
@@ -65,21 +66,28 @@ func (p *poller) Run(ctx context.Context) {
 				return err
 			// to be sure there is no delta between past blocks and blocks comming from the ws
 			case headLevel := <-currentHead:
-				dbLevel, err := p.store.GetCurrentLevel(ctx)
-				if err != nil {
-					p.errorChan <- fmt.Errorf("Error getting current database level: %v", err)
-				}
-				log.Infof("Database level retrieved: %d", dbLevel)
-				log.Infof("Received chain current head level: %d", headLevel)
-
-				startLevel := max(dbLevel+1, p.cfg.GetStartLevel())
-				if headLevel > dbLevel {
-					log.Debugf("Fetching past delegations from level %d to %d", startLevel, headLevel)
-					if err := p.getPastDelegations(ctx, startLevel, headLevel); err != nil {
-						p.errorChan <- fmt.Errorf("Error fetching past delegations: %v", err)
+				// if fetchOld is true in config we proceed to fetch old delegations from the startLevel or the current db level.
+				if p.cfg.GetFetchOld() {
+					log.Info("Fetching old delegations is activated")
+					dbLevel, err := p.store.GetCurrentLevel(ctx)
+					if err != nil {
+						p.errorChan <- fmt.Errorf("Error getting current database level: %v", err)
 					}
-					log.Infof("Past delegations successfully fetched and processed from level %d to %d", startLevel, headLevel)
+					log.Infof("Database level retrieved: %d", dbLevel)
+					log.Infof("Received chain current head level: %d", headLevel)
+
+					startLevel := max(dbLevel+1, p.cfg.GetStartLevel())
+					if headLevel > dbLevel {
+						log.Debugf("Fetching past delegations from level %d to %d", startLevel, headLevel)
+						if err := p.getPastDelegations(ctx, startLevel, headLevel); err != nil {
+							p.errorChan <- fmt.Errorf("Error fetching past delegations: %v", err)
+						}
+						log.Infof("Past delegations successfully fetched and processed from level %d to %d", startLevel, headLevel)
+					}
+				} else {
+					log.Info("Fetching old delegations is deactivated, Only new delegations will be processed")
 				}
+
 			case <-ctx.Done():
 				log.Info("Poller shutdown initiated, stopping operations")
 				return nil

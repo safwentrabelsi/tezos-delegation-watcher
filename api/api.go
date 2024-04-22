@@ -26,6 +26,7 @@ type storeInterface interface {
 	GetDelegations(ctx context.Context, year string) ([]types.Delegation, error)
 }
 
+// NewAPIServer creates a new api server instance with the specified config and data store.
 func NewAPIServer(cfg *config.ServerConfig, store storeInterface) *APIServer {
 	return &APIServer{
 		cfg:   cfg,
@@ -33,6 +34,7 @@ func NewAPIServer(cfg *config.ServerConfig, store storeInterface) *APIServer {
 	}
 }
 
+// Run starts Server with the metrics server.
 func (s *APIServer) Run() {
 	router := gin.Default()
 

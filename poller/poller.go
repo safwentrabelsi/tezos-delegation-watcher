@@ -103,7 +103,7 @@ func (p *poller) Run(ctx context.Context) {
 			log.Debug("Stopping reconnection attempts")
 			return
 		}
-		// The retry logic is here because and not in the tzkt module we should be aware in case of block delta when the connection was closed
+		// The retry logic is here  and not in the tzkt module  because we should be aware in case of block delta when the connection was closed
 		if attempt < p.cfg.GetRetryAttempts() {
 			waitTime := 1 * time.Second
 			log.Errorf("Attempt %d: Connection failed with error: %v. Retrying in %v...", attempt+1, err, waitTime)

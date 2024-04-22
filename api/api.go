@@ -57,6 +57,7 @@ func (s *APIServer) Run() {
 	}()
 
 	router.GET("/xtz/delegations", s.handleGetDelegation)
+	router.GET("/liveness", s.handleLiveness)
 	if err := router.Run(s.cfg.GetListenAddress()); err != nil {
 		log.Fatalf("API server stopped: %v", err)
 	}
@@ -72,4 +73,9 @@ func (s *APIServer) handleGetDelegation(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"data": delegations})
+}
+
+// handleLiveness responds with HTTP 200 OK to indicate that the service is live.
+func (s *APIServer) handleLiveness(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{"status": "ok"})
 }

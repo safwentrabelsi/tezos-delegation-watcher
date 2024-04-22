@@ -16,42 +16,43 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-type MockHttpClient struct {
+type mockHttpClient struct {
 	mock.Mock
 }
 
-func (m *MockHttpClient) Do(req *http.Request) (*http.Response, error) {
+func (m *mockHttpClient) Do(req *http.Request) (*http.Response, error) {
 	args := m.Called(req)
 	return args.Get(0).(*http.Response), args.Error(1)
 }
 
 // MockWebSocketClient implements the WebSocketClient interface
-type MockWebSocketClient struct {
+type mockWebSocketClient struct {
 	mock.Mock
 }
 
-func (m *MockWebSocketClient) Connect(ctx context.Context) error {
+func (m *mockWebSocketClient) Connect(ctx context.Context) error {
 	return m.Called(ctx).Error(0)
 }
 
-func (m *MockWebSocketClient) SubscribeToHead() error {
+func (m *mockWebSocketClient) SubscribeToHead() error {
 	return m.Called().Error(0)
 }
 
-func (m *MockWebSocketClient) Listen() <-chan events.Message {
+func (m *mockWebSocketClient) Listen() <-chan events.Message {
 	args := m.Called()
 	return args.Get(0).(chan events.Message)
 }
 
-func (m *MockWebSocketClient) Close() error {
+func (m *mockWebSocketClient) Close() error {
 	return m.Called().Error(0)
 }
 
 func TestGetDelegationsByLevel(t *testing.T) {
-	client := new(MockHttpClient)
+	client := new(mockHttpClient)
 	tzkt := &Tzkt{
-		url:    "https://fake.api.tzkt.io",
-		client: client,
+		url:           "https://fake.api.tzkt.io",
+		client:        client,
+		retryAttempts: 3,
 	}
 
 	delegations := []types.FetchedDelegation{{Level: 1234}}
@@ -85,13 +86,14 @@ func TestSubscribeToHead(t *testing.T) {
 
 	t.Run("Nominal case", func(t *testing.T) {
 
-		mockWsClient := new(MockWebSocketClient)
-		client := new(MockHttpClient)
+		mockWsClient := new(mockWebSocketClient)
+		client := new(mockHttpClient)
 
 		tzkt := &Tzkt{
-			url:      "https://fake.api.tzkt.io",
-			wsClient: mockWsClient,
-			client:   client,
+			url:           "https://fake.api.tzkt.io",
+			wsClient:      mockWsClient,
+			client:        client,
+			retryAttempts: 3,
 		}
 		delegations := []types.FetchedDelegation{{Level: 101}}
 		buf := new(bytes.Buffer)
@@ -129,13 +131,14 @@ func TestSubscribeToHead(t *testing.T) {
 	})
 
 	t.Run("Connection failed", func(t *testing.T) {
-		mockWsClient := new(MockWebSocketClient)
-		client := new(MockHttpClient)
+		mockWsClient := new(mockWebSocketClient)
+		client := new(mockHttpClient)
 
 		tzkt := &Tzkt{
-			url:      "https://fake.api.tzkt.io",
-			wsClient: mockWsClient,
-			client:   client,
+			url:           "https://fake.api.tzkt.io",
+			wsClient:      mockWsClient,
+			client:        client,
+			retryAttempts: 3,
 		}
 		mockWsClient.On("Connect", mock.Anything).Return(errors.New("connection failed"))
 		go tzkt.SubscribeToHead(ctx, dataChan, currentHead, errorChan)
@@ -143,13 +146,14 @@ func TestSubscribeToHead(t *testing.T) {
 	})
 
 	t.Run("Subscription failed", func(t *testing.T) {
-		mockWsClient := new(MockWebSocketClient)
-		client := new(MockHttpClient)
+		mockWsClient := new(mockWebSocketClient)
+		client := new(mockHttpClient)
 
 		tzkt := &Tzkt{
-			url:      "https://fake.api.tzkt.io",
-			wsClient: mockWsClient,
-			client:   client,
+			url:           "https://fake.api.tzkt.io",
+			wsClient:      mockWsClient,
+			client:        client,
+			retryAttempts: 3,
 		}
 		mockWsClient.On("Connect", ctx).Return(nil)
 		mockWsClient.On("Close").Return(nil)
@@ -164,13 +168,13 @@ func TestSubscribeToHead(t *testing.T) {
 func TestExecuteRequest(t *testing.T) {
 	tests := []struct {
 		name            string
-		prepare         func(*MockHttpClient)
+		prepare         func(*mockHttpClient)
 		expectedError   string
 		expectedRetries int
 	}{
 		{
 			name: "Network Error, should retry and fail",
-			prepare: func(client *MockHttpClient) {
+			prepare: func(client *mockHttpClient) {
 				client.On("Do", mock.Anything).Return(&http.Response{}, errors.New("network error")).Times(3)
 			},
 			expectedError:   "network error",
@@ -178,7 +182,7 @@ func TestExecuteRequest(t *testing.T) {
 		},
 		{
 			name: "HTTP 500 Error, should retry and fail",
-			prepare: func(client *MockHttpClient) {
+			prepare: func(client *mockHttpClient) {
 				resp := &http.Response{
 					StatusCode: http.StatusInternalServerError,
 					Body:       io.NopCloser(bytes.NewReader([]byte{})),
@@ -190,7 +194,7 @@ func TestExecuteRequest(t *testing.T) {
 		},
 		{
 			name: "HTTP 200 OK, should succeed",
-			prepare: func(client *MockHttpClient) {
+			prepare: func(client *mockHttpClient) {
 				resp := &http.Response{
 					StatusCode: http.StatusOK,
 					Body:       io.NopCloser(bytes.NewReader([]byte{})),
@@ -204,11 +208,12 @@ func TestExecuteRequest(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			client := new(MockHttpClient)
+			client := new(mockHttpClient)
 			tc.prepare(client)
 			tzkt := &Tzkt{
-				client: client,
-				url:    "https://fake.api.tzkt.io",
+				client:        client,
+				url:           "https://fake.api.tzkt.io",
+				retryAttempts: 3,
 			}
 			req, _ := http.NewRequest("GET", tzkt.url, nil)
 			ctx := context.Background()

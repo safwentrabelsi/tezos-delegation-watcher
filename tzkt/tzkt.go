@@ -27,9 +27,10 @@ type WebSocketClient interface {
 	Close() error
 }
 type Tzkt struct {
-	url      string
-	client   HttpClient
-	wsClient WebSocketClient
+	url           string
+	client        HttpClient
+	wsClient      WebSocketClient
+	retryAttempts int
 }
 
 type TzktInterface interface {
@@ -45,7 +46,8 @@ func NewClient(cfg *config.TzktConfig) *Tzkt {
 		client: &http.Client{
 			Timeout: time.Duration(cfg.GetTimeout()) * time.Second,
 		},
-		wsClient: events.NewTzKT(fmt.Sprintf("%s/v1/ws", cfg.GetURL())),
+		wsClient:      events.NewTzKT(fmt.Sprintf("%s/v1/ws", cfg.GetURL())),
+		retryAttempts: cfg.GetRetryAttempts(),
 	}
 
 }
@@ -54,22 +56,19 @@ func (t *Tzkt) GetDelegationsByLevel(ctx context.Context, level uint64, dataChan
 	url := fmt.Sprintf("%s/v1/operations/delegations?level=%d", t.url, level)
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
-		log.Errorf("Creating request failed: %v", err)
-		return err
+		return fmt.Errorf("Creating request failed: %v", err)
 	}
 
 	resp, err := t.executeRequest(ctx, req)
 	if err != nil {
-		log.Errorf("Executing request failed: %v", err)
-		return err
+		return fmt.Errorf("Executing request failed: %v", err)
 	}
 	defer resp.Body.Close()
 
 	var delegationsResponse []types.FetchedDelegation
 	err = json.NewDecoder(resp.Body).Decode(&delegationsResponse)
 	if err != nil {
-		log.Errorf("Decoding response failed: %v", err)
-		return err
+		return fmt.Errorf("Decoding response failed: %v", err)
 	}
 
 	if len(delegationsResponse) > 0 {
@@ -124,7 +123,6 @@ func (t *Tzkt) SubscribeToHead(ctx context.Context, dataChan chan<- *types.ChanM
 			if msg.Channel == events.ChannelHead {
 				head, ok := msg.Body.(data.Head)
 				if !ok {
-					log.Errorf("Unexpected type %T for head message", msg.Body)
 					errorChan <- fmt.Errorf("unexpected type %T for head message", msg.Body)
 					return
 				}
@@ -154,8 +152,8 @@ func (t *Tzkt) executeRequest(ctx context.Context, req *http.Request) (*http.Res
 			req = req.WithContext(ctx)
 			resp, err := t.client.Do(req)
 			if err != nil {
-				log.Errorf("HTTP request failed: %v", err)
-				return nil, err
+
+				return nil, fmt.Errorf("HTTP request failed: %v", err)
 			}
 
 			if resp.StatusCode != http.StatusOK {
@@ -165,7 +163,7 @@ func (t *Tzkt) executeRequest(ctx context.Context, req *http.Request) (*http.Res
 			return resp, nil
 		},
 		retry.Context(ctx),
-		retry.Attempts(3),
+		retry.Attempts(uint(t.retryAttempts)),
 		retry.OnRetry(func(n uint, err error) {
 			log.Errorf("Retry %d for error: %v", n+1, err)
 		}),

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/safwentrabelsi/tezos-delegation-watcher/config"
 	"github.com/safwentrabelsi/tezos-delegation-watcher/types"
 	"github.com/safwentrabelsi/tezos-delegation-watcher/tzkt"
 	"github.com/sirupsen/logrus"
@@ -14,17 +13,22 @@ import (
 type storeInterface interface {
 	GetCurrentLevel(ctx context.Context) (uint64, error)
 }
+
+type configInterface interface {
+	GetStartLevel() uint64
+	GetRetryAttempts() int
+}
 type Poller struct {
 	tzkt      tzkt.TzktInterface
 	dataChan  chan<- *types.ChanMsg
 	store     storeInterface
-	cfg       *config.PollerConfig
+	cfg       configInterface
 	errorChan chan<- error
 }
 
 var log = logrus.WithField("module", "poller")
 
-func NewPoller(tzkt tzkt.TzktInterface, dataChan chan<- *types.ChanMsg, store storeInterface, cfg *config.PollerConfig, errorChan chan<- error) Poller {
+func NewPoller(tzkt tzkt.TzktInterface, dataChan chan<- *types.ChanMsg, store storeInterface, cfg configInterface, errorChan chan<- error) Poller {
 	return Poller{
 		tzkt:      tzkt,
 		dataChan:  dataChan,
@@ -35,8 +39,8 @@ func NewPoller(tzkt tzkt.TzktInterface, dataChan chan<- *types.ChanMsg, store st
 }
 
 func (p *Poller) Run(ctx context.Context) {
+	// retry attempts if connection to ws failed
 	attempt := 0
-	maxAttempts := 2
 
 	connect := func() error {
 		currentHead := make(chan uint64)
@@ -86,7 +90,7 @@ func (p *Poller) Run(ctx context.Context) {
 			return
 		}
 		// The retry logic is here because and not in the tzkt module we should be aware in case of block delta when the connection was closed
-		if attempt < maxAttempts {
+		if attempt < p.cfg.GetRetryAttempts() {
 			waitTime := 1 * time.Second
 			log.Errorf("Attempt %d: Connection failed with error: %v. Retrying in %v...", attempt+1, err, waitTime)
 			time.Sleep(waitTime)

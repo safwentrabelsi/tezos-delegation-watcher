@@ -33,9 +33,9 @@ type LogConfig struct {
 
 // TzktConfig contains configuration details for interacting with the Tzkt API.
 type TzktConfig struct {
-	timeout int
-	url     string
-	// TODO add api limit
+	timeout       int
+	url           string
+	retryAttempts int
 }
 
 // DBConfig contains database connection settings with sensitive details unexported.
@@ -49,7 +49,8 @@ type DBConfig struct {
 
 // PollerConfig contains poller settings.
 type PollerConfig struct {
-	startLevel uint64
+	startLevel    uint64
+	retryAttempts int
 }
 
 var (
@@ -98,8 +99,9 @@ func LoadConfig(configFile string) (*Config, error) {
 			level: configYAML.Log.Level,
 		}
 		cfg.Tzkt = &TzktConfig{
-			timeout: configYAML.Tzkt.Timeout,
-			url:     configYAML.Tzkt.URL,
+			timeout:       configYAML.Tzkt.Timeout,
+			url:           configYAML.Tzkt.URL,
+			retryAttempts: configYAML.Tzkt.RetryAttempts,
 		}
 		cfg.DB = &DBConfig{
 			user:     configYAML.DB.User,
@@ -109,7 +111,8 @@ func LoadConfig(configFile string) (*Config, error) {
 			port:     configYAML.DB.Port,
 		}
 		cfg.Poller = &PollerConfig{
-			startLevel: configYAML.Poller.StartLevel,
+			startLevel:    configYAML.Poller.StartLevel,
+			retryAttempts: configYAML.Tzkt.RetryAttempts,
 		}
 	})
 
@@ -151,9 +154,19 @@ func (t *TzktConfig) GetURL() string {
 	return t.url
 }
 
+// GetRetryAttempts returns the maximum retry attempts from the TzktConfig.
+func (t *TzktConfig) GetRetryAttempts() int {
+	return t.retryAttempts
+}
+
 // GetStartLevel returns the start level configuration from the pollerConfig.
-func (t *PollerConfig) GetStartLevel() uint64 {
-	return t.startLevel
+func (p *PollerConfig) GetStartLevel() uint64 {
+	return p.startLevel
+}
+
+// GetRetryAttempts returns the maximum retry attempts from the pollerConfig.
+func (p *PollerConfig) GetRetryAttempts() int {
+	return p.retryAttempts
 }
 
 // GetUser returns the user configuration from the DBConfig.

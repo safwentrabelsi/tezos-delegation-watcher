@@ -21,8 +21,9 @@ type serverConfigYAML struct {
 }
 
 type tzktConfigYAML struct {
-	Timeout int    `yaml:"timeout" validate:"required,gte=0"`
-	URL     string `yaml:"url" validate:"required,url"`
+	Timeout       int    `yaml:"timeout" validate:"required,gte=0"`
+	URL           string `yaml:"url" validate:"required,url"`
+	RetryAttempts int    `yaml:"retryAttempts" validate:"required,gte=0"`
 }
 
 type dbConfigYAML struct {
@@ -40,7 +41,8 @@ type logConfigYAML struct {
 
 // pollerConfigYAML is a transitional struct used for unmarshaling the Poller configuration from YAML.
 type pollerConfigYAML struct {
-	StartLevel uint64 `yaml:"startLevel" validate:"required"`
+	StartLevel    uint64 `yaml:"startLevel" validate:"required"`
+	RetryAttempts int    `yaml:"retryAttempts" validate:"required,gte=0"`
 }
 
 var validate *validator.Validate

@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/safwentrabelsi/tezos-delegation-watcher/config"
 	"github.com/safwentrabelsi/tezos-delegation-watcher/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -40,6 +39,16 @@ func (m *mockStore) GetCurrentLevel(ctx context.Context) (uint64, error) {
 	return args.Get(0).(uint64), args.Error(1)
 }
 
+type mockConfig struct {
+}
+
+func (m *mockConfig) GetStartLevel() uint64 {
+	return 0
+}
+func (m *mockConfig) GetRetryAttempts() int {
+	return 2
+}
+
 func TestPoller_Run(t *testing.T) {
 
 	t.Run("Nomical case", func(t *testing.T) {
@@ -55,7 +64,7 @@ func TestPoller_Run(t *testing.T) {
 		})
 		mockTzktInstance.On("GetDelegationsByLevel", mock.Anything, uint64(101), mock.Anything).Return(nil)
 
-		cfg := &config.PollerConfig{}
+		cfg := &mockConfig{}
 
 		poller := NewPoller(mockTzktInstance, dataChan, mockStoreInstance, cfg, errorChan)
 
@@ -91,7 +100,7 @@ func TestPoller_Run(t *testing.T) {
 			errorChan <- errors.New("couldn't connect to tzkt ws: connection failed")
 		})
 
-		cfg := &config.PollerConfig{}
+		cfg := &mockConfig{}
 
 		poller := NewPoller(mockTzktInstance, dataChan, mockStoreInstance, cfg, errorChan)
 
@@ -118,7 +127,7 @@ func TestPoller_Run(t *testing.T) {
 		})
 		mockTzktInstance.On("GetDelegationsByLevel", mock.Anything, uint64(101), mock.Anything).Return(nil)
 
-		cfg := &config.PollerConfig{}
+		cfg := &mockConfig{}
 
 		poller := NewPoller(mockTzktInstance, dataChan, mockStoreInstance, cfg, errorChan)
 
@@ -146,7 +155,7 @@ func TestPoller_getPastDelegations(t *testing.T) {
 	mockTzktInstance.On("GetDelegationsByLevel", mock.Anything, uint64(102), mock.Anything).Return(nil)
 	mockTzktInstance.On("GetDelegationsByLevel", mock.Anything, uint64(103), mock.Anything).Return(errors.New("some error"))
 
-	cfg := &config.PollerConfig{}
+	cfg := &mockConfig{}
 
 	poller := NewPoller(mockTzktInstance, dataChan, mockStoreInstance, cfg, errorChan)
 

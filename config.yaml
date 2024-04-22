@@ -8,12 +8,15 @@ log:
 tzkt:
   timeout: 10
   url: https://api.tzkt.io
+  retryAttempts: 3
 db:
   user: postgres
   dbname: delegations 
   password: postgres
-  host: postgres
+  host: localhost
   port: 5432
 poller:
   startLevel: 5470000
+  retryAttempts: 3
+
   

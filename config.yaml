@@ -12,7 +12,7 @@ db:
   user: postgres
   dbname: delegations 
   password: postgres
-  host: localhost
+  host: postgres
   port: 5432
 poller:
   startLevel: 5470000

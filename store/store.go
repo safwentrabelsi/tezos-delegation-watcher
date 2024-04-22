@@ -11,12 +11,14 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// PostgresStore manages the operations with the database.
 type PostgresStore struct {
 	db *sql.DB
 }
 
 var logger = logrus.WithField("module", "Storer")
 
+// Storer defines the interface for database operations.
 type Storer interface {
 	SaveDelegations(ctx context.Context, delegations []types.FetchedDelegation) error
 	GetDelegations(ctx context.Context, year string) ([]types.Delegation, error)
@@ -24,7 +26,7 @@ type Storer interface {
 	DeleteDelegationsFromLevel(ctx context.Context, level uint64) error
 }
 
-// NewPostgresStore creates a new instance of PostgresStore
+// NewPostgresStore creates a new instance of PostgresStore.
 func NewPostgresStore(cfg *config.DBConfig) (*PostgresStore, error) {
 	db, err := sql.Open("postgres", cfg.GetPostgresqlDSN())
 	if err != nil {
@@ -70,6 +72,7 @@ func (s *PostgresStore) createDelegationTable() error {
 	return nil
 }
 
+// SaveDelegations saves the delegation data to the database.
 func (s *PostgresStore) SaveDelegations(ctx context.Context, delegations []types.FetchedDelegation) error {
 	if len(delegations) == 0 {
 		return nil
@@ -103,6 +106,8 @@ func (s *PostgresStore) SaveDelegations(ctx context.Context, delegations []types
 
 	return nil
 }
+
+// GetDelegations retrieves delegations from the database for a specified year.
 func (s *PostgresStore) GetDelegations(ctx context.Context, year string) ([]types.Delegation, error) {
 	var rows *sql.Rows
 	var err error
@@ -141,6 +146,7 @@ func (s *PostgresStore) GetDelegations(ctx context.Context, year string) ([]type
 	return delegations, nil
 }
 
+// GetCurrentLevel retrieves the highest block level from the delegations table.
 func (s *PostgresStore) GetCurrentLevel(ctx context.Context) (uint64, error) {
 	var level uint64
 	err := s.db.QueryRowContext(ctx, `SELECT COALESCE(MAX(block),0) FROM delegations`).Scan(&level)
@@ -150,6 +156,7 @@ func (s *PostgresStore) GetCurrentLevel(ctx context.Context) (uint64, error) {
 	return level, nil
 }
 
+// DeleteDelegationsFromLevel deletes all delegations from the database that are at or above a specified level.
 func (s *PostgresStore) DeleteDelegationsFromLevel(ctx context.Context, level uint64) error {
 
 	stmt, err := s.db.PrepareContext(ctx, "DELETE FROM delegations WHERE level >= $1")

@@ -18,7 +18,8 @@ type configInterface interface {
 	GetStartLevel() uint64
 	GetRetryAttempts() int
 }
-type Poller struct {
+
+type poller struct {
 	tzkt      tzkt.TzktInterface
 	dataChan  chan<- *types.ChanMsg
 	store     storeInterface
@@ -28,8 +29,9 @@ type Poller struct {
 
 var log = logrus.WithField("module", "poller")
 
-func NewPoller(tzkt tzkt.TzktInterface, dataChan chan<- *types.ChanMsg, store storeInterface, cfg configInterface, errorChan chan<- error) Poller {
-	return Poller{
+// NewPoller creates a new Poller instance with the necessary dependencies.
+func NewPoller(tzkt tzkt.TzktInterface, dataChan chan<- *types.ChanMsg, store storeInterface, cfg configInterface, errorChan chan<- error) *poller {
+	return &poller{
 		tzkt:      tzkt,
 		dataChan:  dataChan,
 		store:     store,
@@ -38,7 +40,11 @@ func NewPoller(tzkt tzkt.TzktInterface, dataChan chan<- *types.ChanMsg, store st
 	}
 }
 
-func (p *Poller) Run(ctx context.Context) {
+// Run starts the polling process.
+func (p *poller) Run(ctx context.Context) {
+
+	log.Info("Starting the poller...")
+
 	// retry attempts if connection to ws failed
 	attempt := 0
 
@@ -103,7 +109,8 @@ func (p *Poller) Run(ctx context.Context) {
 	}
 }
 
-func (p *Poller) getPastDelegations(ctx context.Context, startLevel, endLevel uint64) error {
+// getPastDelegations fetches delegations from the provided start level to the end level.
+func (p *poller) getPastDelegations(ctx context.Context, startLevel, endLevel uint64) error {
 	for i := startLevel; i <= endLevel; i++ {
 		log.Debugf("Fetching delegations for level %d", i)
 		err := p.tzkt.GetDelegationsByLevel(ctx, i, p.dataChan)

@@ -11,7 +11,7 @@ var log = logrus.WithField("module", "metrics")
 
 const reorgMsgCountMetricsName = "watcher_received_reorg_messages_count"
 
-// Init metrics
+// Init metrics.
 func Init() error {
 	err := initReceivedReogMsgCount()
 	if err != nil {
@@ -20,7 +20,7 @@ func Init() error {
 	return nil
 }
 
-// I wanted to know how many reorg message are there
+// I wanted to know how many reorg message are there;
 func initReceivedReogMsgCount() error {
 
 	counter := &ginmetrics.Metric{
@@ -37,7 +37,7 @@ func initReceivedReogMsgCount() error {
 	return nil
 }
 
-// ReorgMsgCountInc increments the counter reorg_message_count
+// ReorgMsgCountInc increments the counter reorg_message_count;
 func ReorgMsgCountInc() {
 	err := ginmetrics.GetMonitor().GetMetric(reorgMsgCountMetricsName).Inc([]string{})
 	if err != nil {

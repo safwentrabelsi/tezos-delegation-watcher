@@ -10,10 +10,6 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-type Processor interface {
-	Run(ctx context.Context)
-}
-
 type processor struct {
 	store       store.Storer
 	dataChannel <-chan *types.ChanMsg
@@ -22,7 +18,8 @@ type processor struct {
 
 var log = logrus.WithField("module", "processor")
 
-func NewProcessor(store store.Storer, dataChannel <-chan *types.ChanMsg, errorChan chan<- error) Processor {
+// NewProcessor creates a new processor instance with the specified data store, data channel, and error channel.
+func NewProcessor(store store.Storer, dataChannel <-chan *types.ChanMsg, errorChan chan<- error) *processor {
 	return &processor{
 		store:       store,
 		dataChannel: dataChannel,
@@ -30,6 +27,7 @@ func NewProcessor(store store.Storer, dataChannel <-chan *types.ChanMsg, errorCh
 	}
 }
 
+// Run starts the processing of incoming messages from the data channel.
 func (p *processor) Run(ctx context.Context) {
 	log.Info("Starting Processor")
 	for {
@@ -61,6 +59,7 @@ func (p *processor) Run(ctx context.Context) {
 	}
 }
 
+// processDelegations handles the processing of fetched delegations and attempts to save them through the store.
 func (p *processor) processDelegations(ctx context.Context, delegations []types.FetchedDelegation) error {
 	if len(delegations) == 0 {
 		log.Debug("No delegations to process")
@@ -75,6 +74,7 @@ func (p *processor) processDelegations(ctx context.Context, delegations []types.
 	return nil
 }
 
+// processReorg handles reorganization commands by deleting delegations from the store.
 func (p *processor) processReorg(ctx context.Context, level uint64) error {
 	log.Infof("Processing reorganization from block level %d", level)
 	err := p.store.DeleteDelegationsFromLevel(ctx, level)

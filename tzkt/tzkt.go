@@ -16,23 +16,28 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-type HttpClient interface {
+// HTTPClient defines an interface for an HTTP client that can make requests.
+type HTTPClient interface {
 	Do(req *http.Request) (*http.Response, error)
 }
 
+// WebSocketClient defines an interface for a WebSocket client;
 type WebSocketClient interface {
 	Connect(ctx context.Context) error
 	SubscribeToHead() error
 	Listen() <-chan events.Message
 	Close() error
 }
+
+// Tzkt represents a client for interacting with the Tzkt API.
 type Tzkt struct {
 	url           string
-	client        HttpClient
+	client        HTTPClient
 	wsClient      WebSocketClient
 	retryAttempts int
 }
 
+// TzktInterface defines the operations that can be performed by the Tzkt client.
 type TzktInterface interface {
 	GetDelegationsByLevel(ctx context.Context, level uint64, dataChan chan<- *types.ChanMsg) error
 	SubscribeToHead(ctx context.Context, dataChan chan<- *types.ChanMsg, currentHead chan<- uint64, errorChan chan<- error)
@@ -40,6 +45,7 @@ type TzktInterface interface {
 
 var log = logrus.WithField("module", "tzktClient")
 
+// NewClient creates a new Tzkt client using the provided configuration.
 func NewClient(cfg *config.TzktConfig) *Tzkt {
 	return &Tzkt{
 		url: cfg.GetURL(),
@@ -52,6 +58,7 @@ func NewClient(cfg *config.TzktConfig) *Tzkt {
 
 }
 
+// GetDelegationsByLevel fetches the delegations from the tzkt api by level.
 func (t *Tzkt) GetDelegationsByLevel(ctx context.Context, level uint64, dataChan chan<- *types.ChanMsg) error {
 	url := fmt.Sprintf("%s/v1/operations/delegations?level=%d", t.url, level)
 	req, err := http.NewRequest(http.MethodGet, url, nil)
@@ -83,6 +90,7 @@ func (t *Tzkt) GetDelegationsByLevel(ctx context.Context, level uint64, dataChan
 	return nil
 }
 
+// SubscribeToHead subscribes to new blockchain heads via a WebSocket.
 func (t *Tzkt) SubscribeToHead(ctx context.Context, dataChan chan<- *types.ChanMsg, currentHead chan<- uint64, errorChan chan<- error) {
 	log.Debug("Subscribing to TzKT WebSocket for new heads")
 
